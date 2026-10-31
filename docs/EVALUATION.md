@@ -42,6 +42,5 @@ requirements do not cover every paraphrase or language. Error messages default t
 Portuguese. Demo identity selection in the CLI is not authentication. The visual
 demo deliberately denies all order queries. No real inventory writes are performed.
 
-27 automated tests passed after the grounding changes. Public repository upload
-is pending write access. The submission PDF is marked as a review copy until that
-upload is complete; no form submission or recruiter email has been sent.
+27 automated tests passed after the grounding changes. The public repository is
+published. No form submission or recruiter email has been sent.

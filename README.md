@@ -1,8 +1,8 @@
 # Empório da Música - AI Support Agent
 
 Python prototype for the Artefact AI Engineer challenge. Read-only tools and the
-agent loop are implemented. A real local catalog conversation has been verified;
-broader live LLM evaluation and publication are pending.
+agent loop are implemented. Four real English conversations have been recorded,
+and the project is published. Broader model evaluation remains future work.
 
 ## Scope
 
@@ -155,4 +155,6 @@ Local checks: 27 automated synthetic tests passed; original inputs loaded as 65
 products and 20 orders; policy searches returned page references. A live Qwen3 1.7B
 catalog query exposed missing category text in the search index. This was corrected,
 covered by a regression test, and rerun successfully. The visual chat returned real
-model answers using supplied product data. GitHub publication remains pending access.
+model answers using supplied product data. GitHub publication is complete. See
+`docs/PUBLICATION.md` for the correspondence between local development milestones
+and the imported public history.
