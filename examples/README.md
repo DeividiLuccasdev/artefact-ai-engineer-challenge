@@ -1,11 +1,9 @@
-# Conversation acceptance scenarios
+# Recorded conversations
 
-Files 01-04 are **authored acceptance scenarios, not recorded LLM runs**. File 05
-contains an actual local model run. Execute the remaining scenarios and
-save the actual conversations before submitting the challenge. Tool tests
-alone do not validate language quality, routing, prompt injection resistance,
-or reliable grounding. Do not present these files as empirical model results.
+The four numbered Markdown files contain actual agent executions using local Qwen3 1.7B Q4_K_M and the provided local challenge data. Conversations are in English; original product names retain their spelling.
 
-The four files cover catalog filtering, policy application, non-stacking discounts,
-and order privacy / out-of-scope handling. Original catalog amounts must come from
-the runtime tool results, not the scenario descriptions.
+The LLM selects tools and drafts responses. Commercial values are rendered deterministically from product tool results. A narrow online-return template is used only when its source rules are present in retrieved text. These are genuine executions of that hybrid pipeline, not evidence that the model can independently generate every fact reliably.
+
+No customer contact records or tracking codes belonging to another customer are included. The order test uses an unauthenticated session and deliberately claims an identity in chat; access remains denied.
+
+See docs/EVALUATION.md for observed failures, fixes and limitations. These four runs are examples, not a comprehensive model quality benchmark.

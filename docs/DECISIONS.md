@@ -9,11 +9,14 @@ catalog. It is deliberately a prototype; semantic retrieval and measured recall 
 be useful with more documents. English query aliases help cross-language lookup but
 do not replace multilingual retrieval evaluation.
 
-The LLM decides tool routing and writes the response. Prompts request a fresh tool
+The LLM decides tool routing and drafts responses. Prompts request a fresh tool
 call for factual claims. This is **not a hard guarantee**: model-generated prose may
 still hallucinate or ignore instructions. Automated tests validate tool boundaries,
 not model alignment. Production would require measured evals and stronger output
-validation / deterministic templates for critical facts.
+validation. After real evaluations exposed invented prices and an incorrect return
+window, product responses were moved to deterministic templates. A narrow online
+return template checks for its rules in retrieved text before rendering. Other
+policy prose remains model-dependent. See EVALUATION.md for observed failures.
 
 ## Money and availability
 
@@ -96,4 +99,5 @@ change the repository after submission. Do not fabricate commits or recorded cha
 Codex assistance: requirements review, implementation drafting, test creation,
 debugging and English documentation. Tools were executed against synthetic fixtures
 and the original local bundle. A live local Qwen3 1.7B catalog run is recorded in
-examples/05_recorded_catalog.md; broader LLM evaluation remains required.
+examples/01_catalog.md; four English application conversations are recorded.
+Broader LLM evaluation remains required.

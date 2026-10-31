@@ -122,13 +122,12 @@ expire while a turn is running or queued. Both background processes must remain 
 
 ## Known limitations and remaining validation
 
-- One real local catalog conversation is recorded in `examples/05_recorded_catalog.md`.
-  Its names and amounts matched tool results. The UI also completed a live catalog query.
-  This does not validate all routing, multilingual behavior or prompt-injection resilience.
-- Examples 01-04 are acceptance scenarios, **not recorded conversations**. Execute
-  them and save the real transcripts before submission.
-- Prompt instructions request factual grounding but cannot guarantee it. Tool access
-  controls are enforced in code; model prose still needs evaluation.
+- Four actual English conversations are recorded in `examples/`: catalog, returns,
+  promotions, and order privacy/out-of-scope handling. See `docs/EVALUATION.md` for
+  failures observed during development and the final recorded results.
+- Product values are rendered from tool results, and the supported online-return
+  rule uses a template only when its required rules are present in retrieval. The
+  LLM still routes tools; other policy prose and mixed questions need broader evals.
 - Lexical retrieval may miss paraphrases or cut a policy across passages. On uncertain
   or conflicting rules, refer the customer to staff. No automated legal decisions.
 - In-memory history disappears on exit; six complete user turns are retained.
@@ -152,7 +151,7 @@ the repository at delivery; do not modify it afterward.
 
 ## Development verification
 
-Local checks: 24 automated synthetic tests passed; original inputs loaded as 65
+Local checks: 27 automated synthetic tests passed; original inputs loaded as 65
 products and 20 orders; policy searches returned page references. A live Qwen3 1.7B
 catalog query exposed missing category text in the search index. This was corrected,
 covered by a regression test, and rerun successfully. The visual chat returned real

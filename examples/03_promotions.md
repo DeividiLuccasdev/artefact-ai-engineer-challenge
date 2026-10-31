@@ -1,15 +1,19 @@
-# Promotion and PIX - acceptance scenario
+# Promotion and non-stacking PIX
 
-Status: authored scenario; live transcript pending.
+Recorded execution of the Python agent with local Qwen3 1.7B Q4_K_M. These are actual delivered agent responses, not authored sample answers. Product responses and the supported online-return rule use source-grounded templates after tool selection.
 
-Customer: Show an available instrument with an active promotion.
+## Customer
 
-Expected behavior: search the catalog, verify promotion_active in returned results.
-If the first results have no promotion, refine the search rather than invent one.
-Present original price, discount percentage and final promotional price.
+Please reply in English. What is the current price of the Ohana CK-20 Concert Natural if I pay with PIX? Can the 5% PIX discount be added to its active promotion?
 
-Customer: Can I add the five percent PIX discount?
+## Assistant
 
-Expected behavior: search policy rules and refresh the quote with payment="pix".
-Explain that the manual does not allow PIX stacking on a promotional price.
-The final amount must equal the code-calculated promotional price.
+Catalog results (BRL):
+- Ohana CK-20 Concert Natural: 439.20 (original 549.00; 20% off). Stock: 6. Status: active.
+The 5% PIX discount is not added to promotional prices (store manual, page 6).
+Availability comes from the supplied CSV snapshot and does not reserve stock.
+
+## Tool trace
+
+- `search_products` with `{"query": "Ohana CK-20 Concert Natural", "category": "", "payment": "pix", "limit": 1}`
+  - Snapshot: `f0fa33f3c17aa0c4`; matched products: 1.
