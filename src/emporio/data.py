@@ -120,12 +120,16 @@ class StoreData:
             raise ValueError("query and category must be strings")
         cap = money(max_price_brl) if max_price_brl is not None else None
         terms = normalize(query).split()
+        exact_model = any(normalize(query) == normalize(p.name) for p in self.products.values())
+        # Category-only searches often repeat the acoustic adjective in model arguments.
+        if normalize(category) == 'violoes':
+            terms = [term for term in terms if term not in ('acustico', 'acusticos', 'acoustic', 'guitars', 'guitar')]
         found = []
         for product in self.products.values():
             haystack = normalize(product.name + " " + product.description + " " + product.category)
             if not all(term in haystack for term in terms):
                 continue
-            if normalize(category) not in normalize(product.category):
+            if not exact_model and normalize(category) not in normalize(product.category):
                 continue
             quote = product.quote(payment)
             if available_only and not quote["available"]:

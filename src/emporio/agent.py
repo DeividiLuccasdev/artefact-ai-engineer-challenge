@@ -4,8 +4,13 @@ import json
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from threading import Condition
+from emporio.answers import render_products, render_online_return
 
 SYSTEM = """You are the Empório da Música virtual support assistant. Be warm,
+Every monetary amount and product name in your response MUST be copied from a
+successful product tool result. Zero matches means you do not know the price:
+retry without category when searching a specific model, or say it was not found.
+Never supply remembered or plausible prices. Say how many options you actually found.
 informal but professional, concise, and respond in the customer's language.
 The store sells musical instruments only, not accessories or amplifiers.
 For unrelated questions politely redirect to instruments and store support.
@@ -44,7 +49,7 @@ def tool(name, description, properties, required=()):
 
 
 TOOLS = [
-    tool("search_products", "Look up current CSV product prices and stock. Use empty query for category-only search. Query terms must all match; use category='Violões' for acoustic guitars.", {
+    tool("search_products", "Look up CSV prices and stock. For a category/budget search, query MUST be empty: use category='Violões' for acoustic guitars. For a named model, query is its name and category MUST be empty. Never guess a model's category.", {
         "query": {"type": "string"}, "category": {"type": "string"},
         "max_price_brl": {"type": "string", "description": "Decimal BRL budget, e.g. 1000.00"},
         "available_only": {"type": "boolean"}, "payment": {"type": "string", "enum": ["standard", "pix"]},
@@ -118,6 +123,8 @@ class Agent:
             pending = [{"role": "user", "content": text}]
             messages = [{"role": "system", "content": SYSTEM}] + copy.deepcopy(session._history)
             messages.extend(pending)
+            product_result = None
+            policy_result = None
             try:
                 for _ in range(self.max_rounds):
                     message = self.provider.chat(copy.deepcopy(messages), copy.deepcopy(TOOLS))
@@ -130,6 +137,14 @@ class Agent:
                     pending.append(message)
                     if not calls:
                         answer = message.get("content", "")
+                        if product_result is not None:
+                            answer = render_products(product_result, text)
+                            message['content'] = answer
+                        elif policy_result is not None:
+                            grounded_return = render_online_return(policy_result, text)
+                            if grounded_return:
+                                answer = grounded_return
+                                message['content'] = answer
                         if not isinstance(answer, str) or not answer.strip():
                             raise ProviderError("Empty answer")
                         # Retain complete turns only; never split a tool exchange.
@@ -147,6 +162,10 @@ class Agent:
                         if not isinstance(name, str):
                             raise ProviderError("Invalid tool name")
                         result = self.execute(name, function.get("arguments", {}), session.customer_id)
+                        if name == 'search_products' and 'products' in result:
+                            product_result = result
+                        if name == 'search_policies' and 'passages' in result:
+                            policy_result = result
                         response = {"role": "tool", "tool_name": name,
                                     "content": json.dumps(result, ensure_ascii=False)}
                         pending.append(response)

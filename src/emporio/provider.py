@@ -1,5 +1,6 @@
 """Ollama native /api/chat adapter using the Python standard library."""
 import json
+import re
 import urllib.error
 import urllib.request
 from urllib.parse import urlparse
@@ -72,8 +73,12 @@ class LlamaCpp(Ollama):
                 message = {"role": "tool", "tool_call_id": pending_ids.pop(0),
                            "content": message["content"]}
             wire.append(message)
+        current_turn = messages[max((i for i, item in enumerate(messages) if item['role'] == 'user'), default=0):]
+        user_text = current_turn[0].get('content', '')
+        needs_lookup = bool(re.search(r'\b(price|stock|available|guitar|guitars|instrument|instruments|pix|promotion|discount|return|returns|shipping|delivery|order|tracking|hours|address|payment|warranty|preço|estoque|violão|violões|troca|devolução|pedido|horário|frete)\b', user_text, re.I))
         request = urllib.request.Request(self.endpoint, data=json.dumps({
             "model": self.model, "messages": wire, "tools": tools,
+            "tool_choice": "required" if needs_lookup and not any(item['role'] == 'tool' for item in current_turn) else "auto",
             "stream": False, "temperature": 0, "max_tokens": 700,
             "chat_template_kwargs": {"enable_thinking": False}
         }).encode("utf-8"), headers={"Content-Type": "application/json"})
