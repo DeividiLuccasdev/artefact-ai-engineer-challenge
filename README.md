@@ -113,10 +113,12 @@ llama-server -m 'C:\path\to\qwen3-1.7b.gguf' --host 127.0.0.1 --port 11435 -c 81
 ```
 
 Open `http://127.0.0.1:8765`. The server binds only to loopback, validates Host and
-Origin, assigns random HttpOnly session cookies, limits concurrent requests, and
+Origin, establishes random HttpOnly session cookies on page load, limits concurrent requests, and
 does not expose customer identity selection. Order queries in this visual demo
 always remain unauthenticated and are denied. This is a local development interface,
-not a production web deployment. Both background processes must remain running.
+not a production web deployment. Chat responses never replace session cookies;
+requests without an established session return HTTP 409. Active sessions cannot
+expire while a turn is running or queued. Both background processes must remain running.
 
 ## Known limitations and remaining validation
 
@@ -150,7 +152,7 @@ the repository at delivery; do not modify it afterward.
 
 ## Development verification
 
-Local checks: 19 automated synthetic tests passed; original inputs loaded as 65
+Local checks: 23 automated synthetic tests passed; original inputs loaded as 65
 products and 20 orders; policy searches returned page references. A live Qwen3 1.7B
 catalog query exposed missing category text in the search index. This was corrected,
 covered by a regression test, and rerun successfully. The visual chat returned real

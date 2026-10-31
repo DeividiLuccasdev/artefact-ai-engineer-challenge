@@ -55,6 +55,12 @@ return the same response. The tool emits only status, tracking and estimated del
 with shell access can choose it. Do not expose this switch as a public API identity.
 Local operators can read source files; the agent is not an operating-system sandbox.
 The optional visual interface supplies no customer identity and denies order access.
+It creates session cookies on page load, before messages can be sent. POST responses
+never create/replace cookies: otherwise concurrent initial requests could create two
+histories and the slower response could overwrite the browser identity. Missing or
+expired sessions return HTTP 409. Registry entries track in-flight requests, preventing
+expiry from replacing a session during a queued/running turn. Registry locks protect
+only state changes, never model calls or response writes.
 
 Original CSV/PDF files are not included in this public repository. Use the assignment
 bundle locally. If redistribution is authorized later, review and redact it first.

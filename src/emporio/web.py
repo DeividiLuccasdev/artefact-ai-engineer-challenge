@@ -4,14 +4,22 @@ import json
 import secrets
 import threading
 import time
-from http.cookies import SimpleCookie
+from http.cookies import SimpleCookie, CookieError
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from dataclasses import dataclass
 
 from emporio.agent import Agent, Session
 from emporio.data import StoreData
 from emporio.policies import Policies
 from emporio.provider import LlamaCpp
+
+
+@dataclass
+class BrowserSession:
+    session: Session
+    last_seen: float
+    active: int = 0
 
 
 class DemoServer(ThreadingHTTPServer):
@@ -24,6 +32,11 @@ class DemoServer(ThreadingHTTPServer):
         self.guard = threading.Lock()
         self.origin = f"http://127.0.0.1:{port}"
         self.slots = threading.BoundedSemaphore(2)
+
+    def expire_idle(self, now):
+        # Call under guard. Never evict a session while a turn is queued/running.
+        self.sessions = {key: value for key, value in self.sessions.items()
+                         if value.active or now - value.last_seen < 3600}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -46,12 +59,36 @@ class Handler(BaseHTTPRequestHandler):
     def valid_host(self):
         return self.headers.get("Host") == self.server.origin.removeprefix("http://")
 
+    def session_id(self):
+        try:
+            cookies = SimpleCookie(self.headers.get("Cookie", ""))
+            return cookies["emporio_session"].value if "emporio_session" in cookies else ""
+        except CookieError:
+            return ""
+
     def do_GET(self):
         if not self.valid_host():
             return self.send(403, '{"error":"Invalid host"}')
         if self.path == "/":
             page = Path(__file__).with_name("chat.html").read_text(encoding="utf-8")
-            return self.send(200, page, "text/html; charset=utf-8")
+            sid = self.session_id()
+            new_cookie = None
+            full = False
+            with self.server.guard:
+                now = time.monotonic()
+                self.server.expire_idle(now)
+                if sid not in self.server.sessions:
+                    if len(self.server.sessions) >= 20:
+                        full = True
+                    else:
+                        sid = secrets.token_urlsafe(32)
+                        self.server.sessions[sid] = BrowserSession(Session(), now)
+                        new_cookie = sid
+                else:
+                    self.server.sessions[sid].last_seen = now
+            if full:
+                return self.send(429, '{"error":"Session limit reached"}')
+            return self.send(200, page, "text/html; charset=utf-8", cookie=new_cookie)
         self.send(404, '{"error":"Not found"}')
 
     def do_POST(self):
@@ -74,24 +111,26 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(400, '{"error":"Mensagem inválida."}')
         if not self.server.slots.acquire(blocking=False):
             return self.send(429, '{"error":"O assistente está ocupado. Tente novamente em instantes."}')
+        entry = None
         try:
-            cookies = SimpleCookie(self.headers.get("Cookie", ""))
-            sid = cookies["emporio_session"].value if "emporio_session" in cookies else ""
+            sid = self.session_id()
             with self.server.guard:
                 now = time.monotonic()
-                self.server.sessions = {key: value for key, value in self.server.sessions.items()
-                                        if now - value[1] < 3600}
-                if sid not in self.server.sessions:
-                    if len(self.server.sessions) >= 20:
-                        return self.send(429, '{"error":"Session limit reached"}')
-                    sid = secrets.token_urlsafe(32)
-                    session = Session()  # No browser-controlled customer identity.
-                else:
-                    session = self.server.sessions[sid][0]
-                self.server.sessions[sid] = (session, now)
-            answer = self.server.agent.respond(session, text)
-            self.send(200, json.dumps({"answer": answer}, ensure_ascii=False), cookie=sid)
+                self.server.expire_idle(now)
+                entry = self.server.sessions.get(sid)
+                if entry is not None:
+                    entry.active += 1
+                    entry.last_seen = now
+            if entry is None:
+                return self.send(409, '{"error":"Sua sessão expirou. Recarregue a página para iniciar outra conversa."}')
+            answer = self.server.agent.respond(entry.session, text)
+            # A slow response must never overwrite the browser's current identity.
+            self.send(200, json.dumps({"answer": answer}, ensure_ascii=False))
         finally:
+            if entry is not None:
+                with self.server.guard:
+                    entry.active -= 1
+                    entry.last_seen = time.monotonic()
             self.server.slots.release()
 
 
