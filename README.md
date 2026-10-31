@@ -1,6 +1,7 @@
 # Empório da Música - AI Support Agent
 
-Python prototype for the Artefact AI Engineer challenge. Implementation in progress.
+Python prototype for the Artefact AI Engineer challenge. Read-only tools and the
+agent loop are implemented; live LLM evaluation and publication are pending.
 
 ## Scope
 
@@ -24,3 +25,105 @@ behavior before submission. No model execution results will be fabricated.
 
 Original challenge files are local inputs and are not committed by default.
 Public tests use synthetic data. Do not commit customer contact data or credentials.
+
+## Quick start (PowerShell)
+
+Requirements: Python 3.11+, Ollama, and enough local memory to run the selected model.
+Qwen3 8B is the initial tool-capable model choice: local execution avoids model API
+costs and keeps challenge data on the machine. It has not been benchmarked here.
+Smaller hardware may require a smaller tool-capable model and a fresh evaluation.
+
+```powershell
+git clone https://github.com/DeividiLuccasdev/artefact-ai-engineer-challenge.git
+cd artefact-ai-engineer-challenge
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e .
+ollama pull qwen3:8b
+# Ensure the Ollama application/server is running before starting the CLI.
+$env:OLLAMA_MODEL = 'qwen3:8b'
+$data = 'C:\path\to\challenge\data'
+.\.venv\Scripts\python.exe -m emporio.cli --data-dir $data --policies "$data\políticas_da_loja.pdf"
+```
+
+The supplied file names may retain the prefix `desafio_tecnico_ai_eng - `.
+Exactly one file ending in each of categories.csv, products.csv, promotions.csv,
+orders.csv and order_items.csv must exist in the data directory. The customers CSV
+is not needed. Leave original files unchanged while the process starts.
+
+For an order lookup demo, add `--demo-customer-id N`, where N is the corresponding
+customer ID in the supplied orders CSV. This is a **trusted local test switch**, not
+customer authentication. Without it, all order lookups are denied. Type `/quit` to exit.
+
+The application reads environment variables from the shell. `.env.example` documents
+them; `.env` is not loaded automatically. Only local HTTP Ollama hosts are allowed.
+
+## Tests
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+Tests require no Ollama process and no original source files. They validate money,
+catalog filtering, order ownership, session isolation, serialization, rollback,
+tool-call bounds, retrieval references and the mocked Ollama protocol.
+
+## Architecture
+
+`CLI -> Session -> Agent -> Ollama / explicit read-only tools`
+
+- `data.py`: immutable CSV snapshot, Decimal pricing, scoped order lookup.
+- `policies.py`: local lexical retrieval over the PDF, with page references.
+- `agent.py`: tool schemas, prompt, bounded tool loop, per-session FIFO turn processing.
+- `provider.py`: local Ollama HTTP adapter, no shared conversation state.
+- `cli.py`: configuration and one local customer session per process.
+
+No agent framework is necessary for three tools. Explicit dispatch is easier to audit
+than free-form SQL or executable model output. A simple CLI keeps the emphasis on
+agent correctness. The PDF is unstructured reference content; inventory remains
+structured data. Monetary rules are executed in Python rather than delegated to a model.
+
+## Concurrency
+
+Same-session turns are serialized over the **whole** model/tool cycle. Independent
+sessions have separate histories and can execute in parallel. Responses use a single
+immutable startup snapshot; returned dictionaries cannot mutate it. History commits
+only after a completed answer. Complete older turns are pruned, never partial tool
+exchanges. These are single-process guarantees, not distributed locks.
+
+No stock is reserved or sold. Adding reservations would require transactional storage
+and atomic stock checks; a Python lock alone would not protect multiple workers.
+
+## Known limitations and remaining validation
+
+- No live model was available in the development environment. LLM routing, prose,
+  multilingual behavior and prompt-injection resilience are not yet empirically verified.
+- The files in `examples/` are acceptance scenarios, **not recorded conversations**.
+  Replace or supplement them with 3-5 real CLI transcripts before submission.
+- Prompt instructions request factual grounding but cannot guarantee it. Tool access
+  controls are enforced in code; model prose still needs evaluation.
+- Lexical retrieval may miss paraphrases or cut a policy across passages. On uncertain
+  or conflicting rules, refer the customer to staff. No automated legal decisions.
+- In-memory history disappears on exit; six complete user turns are retained.
+- Data is a supplied CSV snapshot, not a live commerce or carrier integration.
+- No web authentication, distributed persistence, order writes, complaint registration,
+  live holiday calendar, or actual human handoff integration.
+
+With more time: evaluate a labeled question set, test adversarial prompts with a real
+model, improve retrieval recall, add validated response templates for critical values,
+and implement real authentication before exposing order queries in an API.
+
+See [design decisions](docs/DECISIONS.md) for data ambiguities, assumptions and privacy
+boundaries. After live validation, prepare the requested submission document and freeze
+the repository at delivery; do not modify it afterward.
+
+## Protocol references
+
+- [Ollama chat endpoint](https://docs.ollama.com/api/chat)
+- [Ollama tool calling](https://docs.ollama.com/capabilities/tool-calling)
+
+## Development verification
+
+Initial local checks: automated synthetic tests passed; original inputs loaded as
+65 products and 20 orders; policy searches returned page references. Ollama was not
+reachable, and GitHub writing returned HTTP 403. These facts do not constitute a
+successful live LLM evaluation or a published repository.

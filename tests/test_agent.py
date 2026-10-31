@@ -100,6 +100,36 @@ class AgentTests(unittest.TestCase):
         self.agent.provider = EchoProvider()
         self.assertEqual(self.agent.respond(session, "retry"), "echo:retry")
 
+    def test_second_turn_waits_while_first_model_call_is_blocked(self):
+        entered, release = threading.Event(), threading.Event()
+        observed = []
+        class Blocking:
+            def chat(self, messages, tools):
+                text = messages[-1]["content"]
+                observed.append(text)
+                if text == "first":
+                    entered.set()
+                    if not release.wait(timeout=5):
+                        raise ProviderError("test timeout")
+                return {"role": "assistant", "content": "echo:" + text}
+        self.agent.provider = Blocking()
+        session = Session()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            first = pool.submit(self.agent.respond, session, "first")
+            self.assertTrue(entered.wait(timeout=2))
+            second = pool.submit(self.agent.respond, session, "second")
+            try:
+                # Condition.wait_for releases the condition while the second caller queues.
+                with session._condition:
+                    self.assertTrue(session._condition.wait_for(lambda: session._next_ticket >= 2, timeout=0.2))
+                self.assertFalse(second.done())
+                self.assertEqual(observed, ["first"])
+            finally:
+                release.set()
+            self.assertEqual(first.result(timeout=3), "echo:first")
+            self.assertEqual(second.result(timeout=3), "echo:second")
+        self.assertEqual(observed, ["first", "second"])
+
     def test_malformed_calls_and_loop_limit_do_not_commit_partial_turns(self):
         for call in ({"function": []}, {"function": {"name": "unknown", "arguments": {}}}):
             class Loop:
