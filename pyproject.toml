@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "emporio-support"
+version = "0.1.0"
+description = "Read-only music store support agent"
+requires-python = ">=3.11"
+dependencies = ["pypdf>=5,<7"]
+
+[project.scripts]
+emporio-support = "emporio.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
