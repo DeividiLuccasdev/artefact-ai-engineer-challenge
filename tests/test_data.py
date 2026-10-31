@@ -27,6 +27,11 @@ class DataTests(unittest.TestCase):
         self.assertEqual(self.store.search_products()["total_matches"], 1)
         self.assertEqual(self.store.search_products(available_only=False)["total_matches"], 3)
 
+    def test_category_words_in_free_text_do_not_hide_valid_products(self):
+        result = self.store.search_products(query="violões", category="Violões", max_price_brl="1000")
+        self.assertEqual(result["total_matches"], 1)
+        self.assertEqual(result["products"][0]["name"], "Demo Guitar")
+
     def test_order_cannot_be_enumerated_or_read_by_another_customer(self):
         denied = self.store.get_order(1, 20)
         self.assertEqual(denied, self.store.get_order(999, 20))

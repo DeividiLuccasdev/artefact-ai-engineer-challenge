@@ -54,10 +54,11 @@ return the same response. The tool emits only status, tracking and estimated del
 --demo-customer-id is a developer-controlled simulation, **not authentication**: anyone
 with shell access can choose it. Do not expose this switch as a public API identity.
 Local operators can read source files; the agent is not an operating-system sandbox.
+The optional visual interface supplies no customer identity and denies order access.
 
 Original CSV/PDF files are not included in this public repository. Use the assignment
 bundle locally. If redistribution is authorized later, review and redact it first.
-The model adapter accepts local Ollama endpoints only, disables proxies and redirects,
+The model adapters accept local Ollama or llama.cpp endpoints only, disable proxies and redirects,
 and never sends data to a remote model service.
 
 ## Manual inconsistencies
@@ -85,4 +86,5 @@ change the repository after submission. Do not fabricate commits or recorded cha
 
 Codex assistance: requirements review, implementation drafting, test creation,
 debugging and English documentation. Tools were executed against synthetic fixtures
-and the original local bundle. Live LLM evaluation remains a separate required check.
+and the original local bundle. A live local Qwen3 1.7B catalog run is recorded in
+examples/05_recorded_catalog.md; broader LLM evaluation remains required.

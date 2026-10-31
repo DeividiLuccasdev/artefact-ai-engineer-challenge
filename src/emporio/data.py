@@ -122,7 +122,7 @@ class StoreData:
         terms = normalize(query).split()
         found = []
         for product in self.products.values():
-            haystack = normalize(product.name + " " + product.description)
+            haystack = normalize(product.name + " " + product.description + " " + product.category)
             if not all(term in haystack for term in terms):
                 continue
             if normalize(category) not in normalize(product.category):

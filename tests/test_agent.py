@@ -9,7 +9,7 @@ from unittest.mock import patch
 from emporio.agent import Agent, ProviderError, Session
 from emporio.data import StoreData
 from emporio.policies import Passage, Policies
-from emporio.provider import Ollama
+from emporio.provider import Ollama, LlamaCpp
 from support import write_fixture
 
 
@@ -167,3 +167,25 @@ class AgentTests(unittest.TestCase):
         self_test = self
         with patch("urllib.request.build_opener", return_value=Opener()):
             self.assertEqual(Ollama().chat([{"role": "user", "content": "hello"}], [])["content"], "ok")
+
+    def test_llama_cpp_preserves_tool_call_identifiers_and_parses_arguments(self):
+        observed = []
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+            def read(self, size):
+                return json.dumps({"choices": [{"finish_reason": "tool_calls", "message": {
+                    "role": "assistant", "content": "", "tool_calls": [{"id": "next", "type": "function",
+                    "function": {"name": "get_order", "arguments": '{"order_id": 1}'}}]}}]}).encode()
+        class Opener:
+            def open(self, request, timeout):
+                observed.append(json.loads(request.data))
+                return Response()
+        messages = [{"role": "assistant", "content": "", "tool_calls": [{"id": "abc",
+                    "function": {"name": "get_order", "arguments": {"order_id": 1}}}]},
+                    {"role": "tool", "tool_name": "get_order", "content": "{}"}]
+        with patch("urllib.request.build_opener", return_value=Opener()):
+            result = LlamaCpp().chat(messages, [])
+        self.assertEqual(observed[0]["messages"][1]["tool_call_id"], "abc")
+        self.assertEqual(observed[0]["messages"][0]["tool_calls"][0]["function"]["arguments"], '{"order_id": 1}')
+        self.assertEqual(result["tool_calls"][0]["function"]["arguments"], {"order_id": 1})

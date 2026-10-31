@@ -40,3 +40,61 @@ class Ollama:
             return message
         except (urllib.error.URLError, TimeoutError, OSError, ValueError, AttributeError) as exc:
             raise ProviderError("Ollama is unavailable or returned invalid JSON") from exc
+
+
+class LlamaCpp(Ollama):
+    """Local llama.cpp chat-completions adapter, preserving tool-call identifiers."""
+
+    def __init__(self, model="qwen3:1.7b", base_url="http://127.0.0.1:11435", timeout=180):
+        super().__init__(model, base_url, timeout)
+        self.endpoint = base_url.rstrip("/") + "/v1/chat/completions"
+
+    def chat(self, messages, tools):
+        wire = []
+        pending_ids = []
+        for item in messages:
+            message = dict(item)
+            if message.get("tool_calls"):
+                calls = []
+                pending_ids = []
+                for i, original in enumerate(message["tool_calls"]):
+                    call = dict(original)
+                    function = dict(call["function"])
+                    if not isinstance(function["arguments"], str):
+                        function["arguments"] = json.dumps(function["arguments"])
+                    identifier = call.get("id", f"call_{len(wire)}_{i}")
+                    calls.append({"id": identifier, "type": "function", "function": function})
+                    pending_ids.append(identifier)
+                message["tool_calls"] = calls
+            elif message["role"] == "tool":
+                if not pending_ids:
+                    raise ProviderError("Orphaned tool response")
+                message = {"role": "tool", "tool_call_id": pending_ids.pop(0),
+                           "content": message["content"]}
+            wire.append(message)
+        request = urllib.request.Request(self.endpoint, data=json.dumps({
+            "model": self.model, "messages": wire, "tools": tools,
+            "stream": False, "temperature": 0, "max_tokens": 700,
+            "chat_template_kwargs": {"enable_thinking": False}
+        }).encode("utf-8"), headers={"Content-Type": "application/json"})
+        class NoRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                return None
+        try:
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+            with opener.open(request, timeout=self.timeout) as response:
+                raw = response.read(2_000_001)
+            if len(raw) > 2_000_000:
+                raise ProviderError("Response exceeded size limit")
+            body = json.loads(raw)
+            if body["choices"][0].get("finish_reason") == "length":
+                raise ProviderError("Truncated model response")
+            message = body["choices"][0]["message"]
+            for call in message.get("tool_calls", []):
+                arguments = call["function"]["arguments"]
+                if isinstance(arguments, str):
+                    call["function"]["arguments"] = json.loads(arguments)
+            return message
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError,
+                AttributeError, KeyError, IndexError, TypeError) as exc:
+            raise ProviderError("Local model is unavailable or returned an invalid response") from exc
