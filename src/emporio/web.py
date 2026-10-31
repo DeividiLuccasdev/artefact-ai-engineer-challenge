@@ -2,6 +2,7 @@
 import argparse
 import json
 import secrets
+import socket
 import threading
 import time
 from http.cookies import SimpleCookie, CookieError
@@ -24,6 +25,13 @@ class BrowserSession:
 
 class DemoServer(ThreadingHTTPServer):
     daemon_threads = True
+    allow_reuse_address = False
+
+    def server_bind(self):
+        # Windows SO_REUSEADDR can let two independent demo processes bind one port.
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
 
     def __init__(self, port, agent):
         super().__init__(("127.0.0.1", port), Handler)

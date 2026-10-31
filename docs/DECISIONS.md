@@ -61,6 +61,9 @@ histories and the slower response could overwrite the browser identity. Missing 
 expired sessions return HTTP 409. Registry entries track in-flight requests, preventing
 expiry from replacing a session during a queued/running turn. Registry locks protect
 only state changes, never model calls or response writes.
+The local HTTP server disables address reuse and uses exclusive address binding
+on Windows, so a second process cannot accidentally serve a separate session registry
+on the same port.
 
 Original CSV/PDF files are not included in this public repository. Use the assignment
 bundle locally. If redistribution is authorized later, review and redact it first.

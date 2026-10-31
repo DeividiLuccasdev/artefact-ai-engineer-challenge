@@ -69,6 +69,11 @@ class WebTests(unittest.TestCase):
     def test_page_establishes_session_before_messages(self):
         self.assertIsNotNone(self.page())
 
+    def test_second_server_cannot_bind_the_same_port(self):
+        with self.assertRaises(OSError):
+            duplicate = DemoServer(self.port, self.server.agent)
+            duplicate.server_close()
+
     def test_expired_cookie_cannot_create_a_replacement_on_post(self):
         cookie = self.page()
         with self.server.guard:

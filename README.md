@@ -152,7 +152,7 @@ the repository at delivery; do not modify it afterward.
 
 ## Development verification
 
-Local checks: 23 automated synthetic tests passed; original inputs loaded as 65
+Local checks: 24 automated synthetic tests passed; original inputs loaded as 65
 products and 20 orders; policy searches returned page references. A live Qwen3 1.7B
 catalog query exposed missing category text in the search index. This was corrected,
 covered by a regression test, and rerun successfully. The visual chat returned real
